@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2026 The Stockfish developers (see AUTHORS file)
+  Modified by al-Kindi LDA on 2026-10-15: changing the number of threads keeps
+  the transposition table when its size and NUMA layout are unchanged.
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -128,6 +130,7 @@ class Engine {
     OptionsMap                                        options;
     ThreadPool                                        threads;
     TranspositionTable                                tt;
+    usize                                             ttSizeMb = 0;  // 0: no table yet
     Eval::NNUE::EvalFile                              networkFile;
     LazyNumaReplicatedSystemWide<Eval::NNUE::Network> network;
 

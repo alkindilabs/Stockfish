@@ -1,6 +1,8 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2026 The Stockfish developers (see AUTHORS file)
+  Modified by al-Kindi LDA on 2026-10-15: changing the number of threads keeps
+  the transposition table when its size and NUMA layout are unchanged.
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -246,17 +248,24 @@ bool Engine::set_numa_config_from_option(const std::string& o) {
 
 void Engine::resize_threads() {
     threads.wait_for_search_finished();
+    const bool spannedNumaNodes = threads.numa_nodes() > 1;
     threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists, network},
                 updateContext);
 
-    // Reallocate the hash with the new threadpool size
-    set_tt_size(options["Hash"]);
+    // Reallocate the hash with the new threadpool size, unless it already has the
+    // requested size and NUMA plays no part in its memory layout, before or after:
+    // then the number of threads makes no difference to it and its contents are kept.
+    const usize hashMb = options["Hash"];
+    if (hashMb != ttSizeMb || spannedNumaNodes
+        || numaContext.get_numa_config().requires_memory_replication())
+        set_tt_size(hashMb);
     threads.ensure_network_replicated();
 }
 
 void Engine::set_tt_size(usize mb) {
     wait_for_search_finished();
     tt.resize(mb, threads);
+    ttSizeMb = mb;
 }
 
 void Engine::set_ponderhit(bool b) { threads.main_manager()->ponder = b; }
